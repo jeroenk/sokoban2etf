@@ -120,7 +120,7 @@ class Screen(object):
         print string[:len(string) - 1]
         print "end init"
 
-    def print_move(self, i_man, j_man, i_empty, j_empty):
+    def print_move(self, i_man, j_man, i_free, j_free):
         string = ""
 
         for k in range(len(self.screen)):
@@ -129,9 +129,9 @@ class Screen(object):
                     continue
 
                 if k == i_man and l == j_man:
-                    string += "3/1 "
-                elif k == i_empty and l == j_empty:
-                    string += "1/3 "
+                    string += str(MAN) + "/" + str(FREE) + " "
+                elif k == i_free and l == j_free:
+                    string += str(FREE) + "/" + str(MAN) + " "
                 else:
                     string += "* "
 
@@ -165,7 +165,7 @@ class Screen(object):
             self.print_move(i, j, i + 1, j)
             print "end trans"
 
-    def print_push(self, i_man, j_man, i_block, j_block, i_empty, j_empty):
+    def print_push(self, i_man, j_man, i_block, j_block, i_free, j_free):
         string = ""
 
         for k in range(len(self.screen)):
@@ -174,11 +174,11 @@ class Screen(object):
                     continue
 
                 if k == i_man and l == j_man:
-                    string += "3/1 "
+                    string += str(MAN) + "/" + str(FREE) + " "
                 elif k == i_block and l == j_block:
-                    string += "0/3 "
-                elif k == i_empty and l == j_empty:
-                    string += "1/0 "
+                    string += str(BLOCK) + "/" + str(MAN) + " "
+                elif k == i_free and l == j_free:
+                    string += str(FREE) + "/" + str(BLOCK) + " "
                 else:
                     string += "* "
 
@@ -223,7 +223,7 @@ class Screen(object):
             for j in range(len(self.screen[i])):
                 if self.screen[i][j].get_use():
                     if self.screen[i][j].is_goal():
-                        string += "0/0 "
+                        string += str(BLOCK) + "/" + str(BLOCK) + " "
                     else:
                         string += "* "
 
