@@ -32,7 +32,7 @@
 
 from sys import argv, stderr
 
-BLOCK, FREE, GOAL, MAN, WALL = range(5)
+BLOCK, FREE, GOAL, MAN, WALL = [0, 1, 2, 3, 4]
 
 class Cell(object):
     def __init__(self, cell_type):
