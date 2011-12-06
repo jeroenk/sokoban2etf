@@ -32,12 +32,26 @@
 
 from sys import argv, stderr
 
-BLOCK, FREE, GOAL, MAN, WALL = [0, 1, 2, 3, 4]
+SORT_COUNT = 5
+BLOCK, FREE, GOAL, MAN, WALL = range(SORT_COUNT)
+STATE_TYPE  = "state_type"
+
+ACTION_COUNT = 5
+LEFT, UP, RIGHT, DOWN, FINISHED = range(ACTION_COUNT)
+ACTION_TYPE = "action_type"
 
 class Cell(object):
     def __init__(self, cell_type):
-        self.cell_type = cell_type
-        self.in_use    = cell_type == GOAL
+        if   cell_type == '$': self.cell_type = BLOCK
+        elif cell_type == ' ': self.cell_type = FREE
+        elif cell_type == '.': self.cell_type = GOAL
+        elif cell_type == '@': self.cell_type = MAN
+        elif cell_type == '#': self.cell_type = WALL
+        else:
+            stderr.write("Invalid symbol '" + cell_type + "' encountered\n")
+            exit(1)
+
+        self.in_use = self.cell_type == GOAL
 
     def __str__(self):
         if   self.cell_type == BLOCK: return "$"
@@ -49,14 +63,14 @@ class Cell(object):
     def get_type(self):
         return self.cell_type
 
-    def get_clean_type(self):
+    def get_primitive_type(self):
         return (FREE if self.cell_type == GOAL else self.cell_type)
 
-    def get_use(self):
+    def get_used(self):
         return self.in_use
 
-    def set_use(self, value):
-        self.in_use = value
+    def set_in_use(self):
+        self.in_use = True
 
     def is_goal(self):
         return self.cell_type == GOAL
@@ -82,30 +96,30 @@ class Screen(object):
 
         self.screen[row].append(cell)
 
-    def used_iteration(self):
+    def find_direct_use(self):
         screen  = self.screen
         changed = False
 
         for i in range(len(self.screen)):
             for j in range(len(screen[i])):
-                if screen[i][j].get_use() or screen[i][j].get_type() == WALL:
+                if screen[i][j].get_used() or screen[i][j].get_type() == WALL:
                     continue
 
                 if j - 1 >= 0 \
-                        and screen[i][j - 1].get_use():
-                    screen[i][j].set_use(True)
+                        and screen[i][j - 1].get_used():
+                    screen[i][j].set_in_use()
                     changed = True
                 elif j + 1 < len(screen[i]) \
-                        and screen[i][j + 1].get_use():
-                    screen[i][j].set_use(True)
+                        and screen[i][j + 1].get_used():
+                    screen[i][j].set_in_use()
                     changed = True
                 elif i - 1 >= 0 and j < len(screen[i - 1]) \
-                        and screen[i - 1][j].get_use():
-                    screen[i][j].set_use(True)
+                        and screen[i - 1][j].get_used():
+                    screen[i][j].set_in_use()
                     changed = True
                 elif i + 1 < len(screen) and j < len(screen[i + 1]) \
-                        and screen[i + 1][j].get_use():
-                    screen[i][j].set_use(True)
+                        and screen[i + 1][j].get_used():
+                    screen[i][j].set_in_use()
                     changed = True
 
         return changed
@@ -114,48 +128,47 @@ class Screen(object):
         changed = True
 
         while changed:
-            changed = self.used_iteration()
+            changed = self.find_direct_use()
 
-    def print_state(self):
-        print "begin state"
-
+    def get_state(self):
         screen = self.screen
-        string = ""
+        string = "begin state\n"
 
         for i in range(len(screen)):
             for j in range(len(screen[i])):
-                if screen[i][j].get_use():
+                if screen[i][j].get_used():
                     string += "field_" + str(i) + "_" + str(j)
-                    string += ":state_type "
+                    string += ":" + STATE_TYPE + " "
 
-        print string[:len(string) - 1]
-        print "end state"
+        string  = string[:len(string) - 1] + "\n"
+        string += "end state"
+        return string
 
-    def print_edge(self):
-        print "begin edge"
-        print "action:action_type"
-        print "end edge"
+    def get_edge(self):
+        return "begin edge\n" \
+            + "action:" + ACTION_TYPE + "\n" \
+            + "end edge"
 
-    def print_init(self):
-        print "begin init"
-
+    def get_init(self):
         screen = self.screen
-        string = ""
+
+        string = "begin init\n"
 
         for i in range(len(screen)):
             for j in range(len(screen[i])):
-                if screen[i][j].get_use():
-                    string += str(screen[i][j].get_clean_type()) + " "
+                if screen[i][j].get_used():
+                    string += str(screen[i][j].get_primitive_type()) + " "
 
-        print string[:len(string) - 1]
-        print "end init"
+        string  = string[:len(string) - 1] + "\n"
+        string += "end init"
+        return string
 
-    def print_move(self, i_man, j_man, i_free, j_free):
+    def get_move(self, i_man, j_man, i_free, j_free, direction):
         string = ""
 
         for k in range(len(self.screen)):
             for l in range(len(self.screen[k])):
-                if not self.screen[k][l].get_use():
+                if not self.screen[k][l].get_used():
                     continue
 
                 if k == i_man and l == j_man:
@@ -165,42 +178,46 @@ class Screen(object):
                 else:
                     string += "* "
 
-        string += "0"
-        print string
+        string += str(direction)
+        return string
 
-    def print_moves(self, i, j):
+    def get_moves(self, i, j):
         screen = self.screen
+        string = ""
 
         if j - 1 >= 0 \
-                and screen[i][j - 1].get_use():
-            print "begin trans"
-            self.print_move(i, j, i, j - 1)
-            print "end trans"
-
-        if j + 1 < len(screen[i]) \
-                and screen[i][j + 1].get_use():
-            print "begin trans"
-            self.print_move(i, j, i, j + 1)
-            print "end trans"
+                and screen[i][j - 1].get_used():
+            string += "begin trans\n" \
+                + self.get_move(i, j, i, j - 1, LEFT) + "\n" \
+                + "end trans\n"
 
         if i - 1 >= 0 and j < len(screen[i - 1]) \
-                and screen[i - 1][j].get_use():
-            print "begin trans"
-            self.print_move(i, j, i - 1, j)
-            print "end trans"
+                and screen[i - 1][j].get_used():
+            string += "begin trans\n" \
+                + self.get_move(i, j, i - 1, j, UP) + "\n" \
+                + "end trans\n"
+
+        if j + 1 < len(screen[i]) \
+                and screen[i][j + 1].get_used():
+            string += "begin trans\n" \
+                + self.get_move(i, j, i, j + 1, RIGHT) + "\n" \
+                + "end trans\n"
 
         if i + 1 < len(screen) and j < len(screen[i + 1]) \
-                and screen[i + 1][j].get_use():
-            print "begin trans"
-            self.print_move(i, j, i + 1, j)
-            print "end trans"
+                and screen[i + 1][j].get_used():
+            string += "begin trans\n" \
+                + self.get_move(i, j, i + 1, j, DOWN) + "\n" \
+                + "end trans\n"
 
-    def print_push(self, i_man, j_man, i_block, j_block, i_free, j_free):
+        return string
+
+    def get_push(self, i_man, j_man, i_block, j_block, i_free, j_free, \
+                     direction):
         string = ""
 
         for k in range(len(self.screen)):
             for l in range(len(self.screen[k])):
-                if not self.screen[k][l].get_use():
+                if not self.screen[k][l].get_used():
                     continue
 
                 if k == i_man and l == j_man:
@@ -212,80 +229,91 @@ class Screen(object):
                 else:
                     string += "* "
 
-        string += "0"
-        print string
+        string += str(direction)
+        return string
 
-    def print_pushes(self, i, j):
+    def get_pushes(self, i, j):
         screen = self.screen
+        string = ""
 
         if j - 2 >= 0 and j - 1 >= 0 \
-                and screen[i][j - 2].get_use() and screen[i][j - 1].get_use():
-            print "begin trans"
-            self.print_push(i, j, i, j - 1, i, j - 2)
-            print "end trans"
-
-        if j + 1 < len(screen[i]) and j + 2 < len(screen[i]) \
-                and screen[i][j + 1].get_use() and screen[i][j + 2].get_use():
-            print "begin trans"
-            self.print_push(i, j, i, j + 1, i, j + 2)
-            print "end trans"
+                and screen[i][j - 2].get_used() and screen[i][j - 1].get_used():
+            string += "begin trans\n" \
+                + self.get_push(i, j, i, j - 1, i, j - 2, LEFT) + "\n" \
+                + "end trans\n"
 
         if i - 1 >= 0 and i - 2 >= 0 \
                 and j < len(screen[i - 1]) and j < len(screen[i - 2]) \
-                and screen[i - 1][j].get_use() and screen[i - 2][j].get_use():
-            print "begin trans"
-            self.print_push(i, j, i - 1, j, i - 2, j)
-            print "end trans"
+                and screen[i - 1][j].get_used() and screen[i - 2][j].get_used():
+            string += "begin trans\n" \
+                + self.get_push(i, j, i - 1, j, i - 2, j, UP) + "\n" \
+                + "end trans\n"
+
+        if j + 1 < len(screen[i]) and j + 2 < len(screen[i]) \
+                and screen[i][j + 1].get_used() and screen[i][j + 2].get_used():
+            string += "begin trans\n" \
+                + self.get_push(i, j, i, j + 1, i, j + 2, RIGHT) + "\n" \
+                + "end trans\n"
 
         if i + 1 < len(screen) and i + 2 < len(screen) \
                 and j < len(screen[i + 1]) and j < len(screen[i + 2]) \
-                and screen[i + 1][j].get_use() and screen[i + 2][j].get_use():
-            print "begin trans"
-            self.print_push(i, j, i + 1, j, i + 2, j)
-            print "end trans"
+                and screen[i + 1][j].get_used() and screen[i + 2][j].get_used():
+            string += "begin trans\n" \
+                + self.get_push(i, j, i + 1, j, i + 2, j, DOWN) + "\n" \
+                + "end trans\n"
 
-    def print_finished(self):
-        print "begin trans"
+        return string
 
-        string = ""
+    def get_finished(self):
+        screen = self.screen
+        string = "begin trans\n"
 
-        for i in range(len(self.screen)):
-            for j in range(len(self.screen[i])):
-                if self.screen[i][j].get_use():
-                    if self.screen[i][j].is_goal():
+        for i in range(len(screen)):
+            for j in range(len(screen[i])):
+                if screen[i][j].get_used():
+                    if screen[i][j].is_goal():
                         string += str(BLOCK) + "/" + str(BLOCK) + " "
                     else:
                         string += "* "
 
-        string += "1"
-        print string
-        print "end trans"
+        string += str(FINISHED) + "\n"
+        string += "end trans"
+        return string
 
-    def print_trans(self):
+    def get_trans(self):
+        string = ""
+
         for i in range(len(self.screen)):
             for j in range(len(self.screen[i])):
-                if self.screen[i][j].get_use():
-                    self.print_moves(i, j)
-                    self.print_pushes(i, j)
+                if self.screen[i][j].get_used():
+                    string += self.get_moves(i, j)
+                    string += self.get_pushes(i, j)
 
-        self.print_finished()
+        string += self.get_finished()
+        return string
 
-    def print_sorts(self):
-        print "begin sort state_type"
-        print "\"block\""
-        print "\"free\""
-        print "\"goal\""
-        print "\"man\""
-        print "\"wall\""
-        print "end sort"
+    def get_sorts(self):
+        string = "begin sort " + STATE_TYPE + "\n"
+        for i in range(SORT_COUNT):
+            if   i == BLOCK: string += "\"block\"\n"
+            elif i == FREE : string += "\"free\"\n"
+            elif i == GOAL : string += "\"goal\"\n"
+            elif i == MAN  : string += "\"man\"\n"
+            elif i == WALL : string += "\"wall\"\n"
+        string += "end sort\n"
 
-        print "begin sort action_type"
-        print "\"step\""
-        print "\"finished\""
-        print "end sort"
+        string += "begin sort " + ACTION_TYPE + "\n"
+        for i in range(ACTION_COUNT):
+            if   i == LEFT    : string += "\"l\"\n"
+            elif i == UP      : string += "\"u\"\n"
+            elif i == RIGHT   : string += "\"r\"\n"
+            elif i == DOWN    : string += "\"d\"\n"
+            elif i == FINISHED: string += "\"finished\"\n"
+        string += "end sort"
+        return string
 
 def parse_screen(file_name):
-    f = open(argv[1], 'rb')
+    f = open(file_name, 'rb')
     d = f.read()
     f.close()
 
@@ -299,14 +327,7 @@ def parse_screen(file_name):
         elif c == '\r':
             continue
         else:
-            if   c == '$': cell = Cell(BLOCK)
-            elif c == ' ': cell = Cell(FREE)
-            elif c == '.': cell = Cell(GOAL)
-            elif c == '@': cell = Cell(MAN)
-            elif c == '#': cell = Cell(WALL)
-            else:
-                stderr.write("Invalid symbol '" + c + "' encountered\n")
-                exit(1)
+            cell = Cell(c)
             screen.append_column(row, cell)
 
     return screen
@@ -322,10 +343,10 @@ def main():
     screen = parse_screen(argv[1])
     screen.mark_used()
 
-    screen.print_state()
-    screen.print_edge()
-    screen.print_init()
-    screen.print_trans()
-    screen.print_sorts()
+    print screen.get_state()
+    print screen.get_edge()
+    print screen.get_init()
+    print screen.get_trans()
+    print screen.get_sorts()
 
 main()
