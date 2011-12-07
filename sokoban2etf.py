@@ -33,31 +33,31 @@
 from sys import argv, stderr
 
 SORT_COUNT = 5
-BLOCK, FREE, GOAL, MAN, WALL = range(SORT_COUNT)
+BLOCK, FREE, MAN, GOAL, WALL = range(SORT_COUNT)
 STATE_TYPE  = "state_type"
 
 ACTION_COUNT = 5
-LEFT, UP, RIGHT, DOWN, FINISHED = range(ACTION_COUNT)
+LEFT, UP, RIGHT, DOWN, FINISH = range(ACTION_COUNT)
 ACTION_TYPE = "action_type"
 
 class Cell(object):
     def __init__(self, cell_type):
         if   cell_type == '$': self.cell_type = BLOCK
         elif cell_type == ' ': self.cell_type = FREE
-        elif cell_type == '.': self.cell_type = GOAL
         elif cell_type == '@': self.cell_type = MAN
+        elif cell_type == '.': self.cell_type = GOAL
         elif cell_type == '#': self.cell_type = WALL
         else:
             stderr.write("Invalid symbol '" + cell_type + "' encountered\n")
             exit(1)
 
-        self.in_use = self.cell_type == GOAL
+        self.in_use = self.cell_type == GOAL or self.cell_type == MAN
 
     def __str__(self):
         if   self.cell_type == BLOCK: return "$"
         elif self.cell_type == FREE : return " "
-        elif self.cell_type == GOAL : return "."
         elif self.cell_type == MAN  : return "@"
+        elif self.cell_type == GOAL : return "."
         elif self.cell_type == WALL : return "#"
 
     def get_type(self):
@@ -276,7 +276,7 @@ class Screen(object):
                     else:
                         string += "* "
 
-        string += str(FINISHED) + "\n"
+        string += str(FINISH) + "\n"
         string += "end trans"
         return string
 
@@ -297,18 +297,19 @@ class Screen(object):
         for i in range(SORT_COUNT):
             if   i == BLOCK: string += "\"block\"\n"
             elif i == FREE : string += "\"free\"\n"
-            elif i == GOAL : string += "\"goal\"\n"
             elif i == MAN  : string += "\"man\"\n"
-            elif i == WALL : string += "\"wall\"\n"
+            # GOAL and MAN are not needed in the etf
+            # elif i == GOAL : string += "\"goal\"\n"
+            # elif i == WALL : string += "\"wall\"\n"
         string += "end sort\n"
 
         string += "begin sort " + ACTION_TYPE + "\n"
         for i in range(ACTION_COUNT):
-            if   i == LEFT    : string += "\"l\"\n"
-            elif i == UP      : string += "\"u\"\n"
-            elif i == RIGHT   : string += "\"r\"\n"
-            elif i == DOWN    : string += "\"d\"\n"
-            elif i == FINISHED: string += "\"finished\"\n"
+            if   i == LEFT  : string += "\"l\"\n"
+            elif i == UP    : string += "\"u\"\n"
+            elif i == RIGHT : string += "\"r\"\n"
+            elif i == DOWN  : string += "\"d\"\n"
+            elif i == FINISH: string += "\"finish\"\n"
         string += "end sort"
         return string
 
