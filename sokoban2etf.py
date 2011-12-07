@@ -80,15 +80,24 @@ class Screen(object):
         self.screen = [[]]
 
     def __str__(self):
-        screen = ""
+        screen = self.screen
+        string = ""
 
-        for l in self.screen:
-            for p in l:
-                screen += str(p)
+        for  i in range(len(screen)):
+            for j in range(len(screen[i])):
+                char = str(screen[i][j])
 
-            screen += "\n"
+                if screen[i][j].get_used() and char == ' ':
+                    if self.is_corner(i, j):
+                        char = 'c'
+                    elif self.is_alcove(i, j):
+                        char = 'a'
 
-        return screen
+                string += char
+
+            string += "\n"
+
+        return string
 
     def append_column(self, row, cell):
         for i in range(len(self.screen), row + 1):
@@ -100,7 +109,7 @@ class Screen(object):
         screen  = self.screen
         changed = False
 
-        for i in range(len(self.screen)):
+        for i in range(len(screen)):
             for j in range(len(screen[i])):
                 if screen[i][j].get_used() or screen[i][j].get_type() == WALL:
                     continue
@@ -232,35 +241,124 @@ class Screen(object):
         string += str(direction)
         return string
 
-    def get_pushes(self, i, j):
+    def is_corner(self, i, j):
+        screen = self.screen
+
+        if screen[i][j].get_type() == GOAL:
+            return False
+
+        if i - 1 >= 0 and j < len(screen[i - 1]) \
+                and screen[i - 1][j].get_type() == WALL:
+            if j - 1 >= 0 and screen[i][j - 1].get_type() == WALL:
+                return True
+            elif j + 1 < len(screen[i]) and screen[i][j + 1].get_type() == WALL:
+                return True
+        elif i + 1 < len(screen) and j < len(screen[i + 1]) \
+                and screen[i + 1][j].get_type() == WALL:
+            if j - 1 >= 0 and screen[i][j - 1].get_type() == WALL:
+                return True
+            elif j + 1 < len(screen[i]) and screen[i][j + 1].get_type() == WALL:
+                return True
+
+        return False
+
+    def is_horizontal_half_alcove(self, i, i_wall, j, inc):
+        screen = self.screen
+
+        if screen[i][j].get_type() == GOAL:
+            return False
+
+        if j + inc >= 0 and j + inc < len(screen[i]):
+            if screen[i][j + inc].get_type() == WALL:
+                return True
+            elif j + inc >= 0 and j + inc < len(screen[i_wall]) \
+                    and screen[i_wall][j + inc].get_type() == WALL:
+                return self.is_horizontal_half_alcove(i, i_wall, j + inc, inc)
+
+        return False
+
+    def is_vertical_half_alcove(self, i, j, j_wall, inc):
+        screen = self.screen
+
+        if screen[i][j].get_type() == GOAL:
+            return False
+
+        if i + inc >= 0 and i + inc < len(screen):
+            if j < len(screen[i + inc]) \
+                    and screen[i + inc][j].get_type() == WALL:
+                return True
+            elif j_wall < len(screen[i + inc]) \
+                    and screen[i + inc][j_wall].get_type() == WALL:
+                return self.is_vertical_half_alcove(i + inc, j, j_wall, inc)
+
+        return False
+
+    def is_alcove(self, i, j):
+        screen = self.screen
+        found = False
+
+        if not found and j - 1 >= 0 \
+                and screen[i][j - 1].get_type() == WALL:
+            found = self.is_vertical_half_alcove(i, j, j - 1, -1) \
+                and self.is_vertical_half_alcove(i, j, j - 1, 1)
+
+        if not found and j + 1 < len(screen[i]) \
+                and screen[i][j + 1].get_type() == WALL:
+            found = self.is_vertical_half_alcove(i, j, j + 1, -1) \
+                and self.is_vertical_half_alcove(i, j, j + 1, 1)
+
+        if not found and i - 1 >= 0 and j < len(screen[i - 1]) \
+                and screen[i - 1][j].get_type() == WALL:
+            found = self.is_horizontal_half_alcove(i, i - 1, j, -1) \
+                and self.is_horizontal_half_alcove(i, i - 1, j, 1)
+
+        if not found and i + 1 < len(screen) and j < len(screen[i + 1]) \
+                and screen[i + 1][j].get_type() == WALL:
+            found = self.is_horizontal_half_alcove(i, i + 1, j, -1) \
+                and self.is_horizontal_half_alcove(i, i + 1, j, 1)
+
+        return found
+
+    def is_dead_end(self, i, j):
+        return False
+
+    def is_useless_position(self, i, j):
+        return self.is_corner(i, j) \
+            or self.is_alcove(i, j)
+
+    def get_pushes(self, i, j, optimized):
         screen = self.screen
         string = ""
 
         if j - 2 >= 0 and j - 1 >= 0 \
                 and screen[i][j - 2].get_used() and screen[i][j - 1].get_used():
-            string += "begin trans\n" \
-                + self.get_push(i, j, i, j - 1, i, j - 2, LEFT) + "\n" \
-                + "end trans\n"
+            if not optimized or not self.is_useless_position(i, j - 2):
+                string += "begin trans\n" \
+                    + self.get_push(i, j, i, j - 1, i, j - 2, LEFT) + "\n" \
+                    + "end trans\n"
 
         if i - 1 >= 0 and i - 2 >= 0 \
                 and j < len(screen[i - 1]) and j < len(screen[i - 2]) \
                 and screen[i - 1][j].get_used() and screen[i - 2][j].get_used():
-            string += "begin trans\n" \
-                + self.get_push(i, j, i - 1, j, i - 2, j, UP) + "\n" \
-                + "end trans\n"
+            if not optimized or not self.is_useless_position(i - 2, j):
+                string += "begin trans\n" \
+                    + self.get_push(i, j, i - 1, j, i - 2, j, UP) + "\n" \
+                    + "end trans\n"
 
         if j + 1 < len(screen[i]) and j + 2 < len(screen[i]) \
                 and screen[i][j + 1].get_used() and screen[i][j + 2].get_used():
-            string += "begin trans\n" \
-                + self.get_push(i, j, i, j + 1, i, j + 2, RIGHT) + "\n" \
-                + "end trans\n"
+            if not optimized or not self.is_useless_position(i, j + 2):
+                string += "begin trans\n" \
+                    + self.get_push(i, j, i, j + 1, i, j + 2, RIGHT) + "\n" \
+                    + "end trans\n"
 
         if i + 1 < len(screen) and i + 2 < len(screen) \
                 and j < len(screen[i + 1]) and j < len(screen[i + 2]) \
                 and screen[i + 1][j].get_used() and screen[i + 2][j].get_used():
-            string += "begin trans\n" \
-                + self.get_push(i, j, i + 1, j, i + 2, j, DOWN) + "\n" \
-                + "end trans\n"
+            if not optimized or not self.is_useless_position(i + 2, j):
+                string += "begin trans\n" \
+                    + self.get_push(i, j, i + 1, j, i + 2, j, DOWN) + "\n" \
+                    + "end trans\n"
 
         return string
 
@@ -280,14 +378,14 @@ class Screen(object):
         string += "end trans"
         return string
 
-    def get_trans(self):
+    def get_trans(self, optimized):
         string = ""
 
         for i in range(len(self.screen)):
             for j in range(len(self.screen[i])):
                 if self.screen[i][j].get_used():
                     string += self.get_moves(i, j)
-                    string += self.get_pushes(i, j)
+                    string += self.get_pushes(i, j, optimized)
 
         string += self.get_finished()
         return string
@@ -334,20 +432,31 @@ def parse_screen(file_name):
     return screen
 
 def usage():
-    stderr.write("Usage: " + argv[0] + " <sokoban screen>\n")
+    stderr.write("Usage: " + argv[0] + " [--optimize] <sokoban screen>\n")
     exit(1)
 
 def main():
-    if len(argv) != 2:
+    if len(argv) == 2:
+        file_name = argv[1]
+        optimized = False
+    elif len(argv) == 3 and argv[1] == "--optimize":
+        file_name = argv[2]
+        optimized = True
+    elif len(argv) == 3 and argv[2] == "--optimize":
+        file_name = argv[1]
+        optimized = True
+    else:
         usage()
 
-    screen = parse_screen(argv[1])
+    screen = parse_screen(file_name)
     screen.mark_used()
+
+    stderr.write(str(screen))
 
     print screen.get_state()
     print screen.get_edge()
     print screen.get_init()
-    print screen.get_trans()
+    print screen.get_trans(optimized)
     print screen.get_sorts()
 
 main()

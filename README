@@ -1,1 +1,36 @@
+Introduction
+------------
+
 Translate Sokoban puzzles in xsokoban format into the etf format of LTSmin
+
+Usage
+-----
+
+The Sokoban to etf translator can be invoked with:
+
+    ./sokoban2etf <screen file>
+
+where "screen file" is a file in xsokoban format. The translation to etf
+is written to standard out. A copy of the puzzle is displayed on standard
+error.
+
+In addition to the above, the translator can be invoked with:
+
+    ./sokoban2etf --optimize <screen file>
+
+Using the optimize flag, some useless pushes of blocks are not generated.
+In particular, blocks are not pushed into "corners" which are not also goal
+positions. For example, this makes the following move illegal:
+
+     #             #
+    # $@    to    #$@
+
+Moreover, blocks are not pushed into "alcoves" that do not contain a goal
+position. This makes, e.g., the following illegal:
+
+      @
+      $           @
+    #    #  to  # $  #
+    ######      ######
+
+END OF README
