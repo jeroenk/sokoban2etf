@@ -319,9 +319,6 @@ class Screen(object):
 
         return found
 
-    def is_dead_end(self, i, j):
-        return False
-
     def is_useless_position(self, i, j):
         return self.is_corner(i, j) \
             or self.is_alcove(i, j)
